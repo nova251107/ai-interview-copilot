@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Resume - Vasu</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #222; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.5; }
+    h1 { font-size: 26px; color: #1a1a2e; }
+    h2 { font-size: 14px; border-bottom: 2px solid #4f46e5; padding-bottom: 4px; margin: 18px 0 8px; color: #4f46e5; text-transform: uppercase; letter-spacing: 1px; }
+    .contact { color: #555; font-size: 12px; margin-top: 4px; }
+    .contact span { margin-right: 16px; }
+    .section { margin-bottom: 6px; }
+    .job-title { font-weight: bold; color: #1a1a2e; }
+    .company { color: #4f46e5; }
+    .date { float: right; color: #777; font-size: 12px; }
+    .skills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .skill { background: #ede9fe; color: #4f46e5; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+    ul { padding-left: 18px; margin-top: 4px; }
+    ul li { margin-bottom: 3px; }
+    .print-btn { position: fixed; top: 20px; right: 20px; background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    @media print { .print-btn { display: none; } }
+  </style>
+</head>
+<body>
+
+  <button class="print-btn" onclick="window.print()">💾 Save as PDF</button>
+
+  <!-- Header -->
+  <h1>Vasu Gadoya</h1>
+  <div class="contact">
+    <span>📧 vasu@example.com</span>
+    <span>📱 +91 98765 43210</span>
+    <span>🌐 github.com/vasugadoya</span>
+    <span>📍 India</span>
+  </div>
+
+  <!-- Objective -->
+  <h2>Objective</h2>
+  <p>Passionate Full Stack Developer with experience in React, Node.js, and AI integrations. Seeking a challenging role where I can build impactful products and grow as a software engineer.</p>
+
+  <!-- Skills -->
+  <h2>Technical Skills</h2>
+  <div class="skills">
+    <span class="skill">JavaScript</span>
+    <span class="skill">TypeScript</span>
+    <span class="skill">React.js</span>
+    <span class="skill">Next.js</span>
+    <span class="skill">Node.js</span>
+    <span class="skill">Express.js</span>
+    <span class="skill">PostgreSQL</span>
+    <span class="skill">MongoDB</span>
+    <span class="skill">Prisma</span>
+    <span class="skill">REST APIs</span>
+    <span class="skill">Git</span>
+    <span class="skill">Docker</span>
+    <span class="skill">Tailwind CSS</span>
+    <span class="skill">Python</span>
+  </div>
+
+  <!-- Experience -->
+  <h2>Experience</h2>
+  <div class="section">
+    <span class="date">Jan 2024 – Present</span>
+    <div class="job-title">Full Stack Developer Intern</div>
+    <div class="company">TechStartup Pvt. Ltd. — Remote</div>
+    <ul>
+      <li>Built REST APIs using Node.js and Express serving 10,000+ daily requests</li>
+      <li>Developed React dashboards with real-time data using WebSockets</li>
+      <li>Integrated third-party APIs including Stripe, Cloudinary, and OpenAI</li>
+      <li>Reduced page load time by 40% through code splitting and lazy loading</li>
+    </ul>
+  </div>
+
+  <div class="section" style="margin-top:10px">
+    <span class="date">Jun 2023 – Dec 2023</span>
+    <div class="job-title">Frontend Developer (Freelance)</div>
+    <div class="company">Self-employed</div>
+    <ul>
+      <li>Delivered 5+ client projects using React.js and Next.js</li>
+      <li>Built responsive UIs with Tailwind CSS achieving 98% Lighthouse score</li>
+      <li>Maintained 100% client satisfaction with on-time delivery</li>
+    </ul>
+  </div>
+
+  <!-- Projects -->
+  <h2>Projects</h2>
+  <div class="section">
+    <span class="date">2024</span>
+    <div class="job-title">AI Interview Copilot</div>
+    <ul>
+      <li>Full-stack AI platform: resume analysis, mock interviews, roadmap generation</li>
+      <li>Tech Stack: Next.js, Node.js, PostgreSQL (Neon), Prisma, Clerk Auth, Cloudinary, Gemini AI</li>
+    </ul>
+  </div>
+
+  <div class="section" style="margin-top:8px">
+    <span class="date">2023</span>
+    <div class="job-title">E-Commerce Platform</div>
+    <ul>
+      <li>Built complete shopping platform with cart, payments (Stripe), and admin panel</li>
+      <li>Tech Stack: React, Node.js, MongoDB, Express</li>
+    </ul>
+  </div>
+
+  <!-- Education -->
+  <h2>Education</h2>
+  <div class="section">
+    <span class="date">2021 – 2025</span>
+    <div class="job-title">Bachelor of Engineering — Computer Science</div>
+    <div class="company">XYZ University, India</div>
+    <div>CGPA: 8.5 / 10</div>
+  </div>
+
+  <!-- Certifications -->
+  <h2>Certifications</h2>
+  <ul>
+    <li>Google — Generative AI Fundamentals (2024)</li>
+    <li>Meta — Frontend Developer Professional Certificate (2023)</li>
+    <li>AWS — Cloud Practitioner Essentials (2023)</li>
+  </ul>
+
+</body>
+</html>

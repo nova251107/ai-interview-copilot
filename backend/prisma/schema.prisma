@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ProblemStatus {
+  SOLVED
+  ATTEMPTED
+  REVIEW
+}
+
+// ─── User ─────────────────────────────────────────────────────────
+model User {
+  id         String   @id              // Clerk user ID
+  name       String
+  email      String   @unique
+  image      String?
+  createdAt  DateTime @default(now())
+
+  resumes    Resume[]
+  interviews Interview[]
+  roadmaps   Roadmap[]
+  dsa        DSA?
+  dsaLogs    DsaLog[]
+}
+
+// ─── Resume ───────────────────────────────────────────────────────
+model Resume {
+  id          String   @id @default(cuid())
+  userId      String
+  resumeUrl   String
+  score       Int?
+  atsScore    Int?
+  skills      String[] // Array of skill strings
+  suggestions String[] // Array of suggestion strings
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Interview ────────────────────────────────────────────────────
+model Interview {
+  id        String     @id @default(cuid())
+  userId    String
+  role      String
+  score     Int?
+  feedback  Json?      // { communication, technical, confidence, overall }
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions Question[]
+}
+
+// ─── Question ─────────────────────────────────────────────────────
+model Question {
+  id          String    @id @default(cuid())
+  interviewId String
+  question    String
+  answer      String?
+  evaluation  Json?     // { confidence, accuracy, communication, score }
+
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+}
+
+// ─── Roadmap ──────────────────────────────────────────────────────
+model Roadmap {
+  id          String   @id @default(cuid())
+  userId      String
+  role        String
+  roadmapJson Json     // { month1: [...], month2: [...], month3: [...] }
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── DSA Tracker ──────────────────────────────────────────────────
+model DSA {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  easy              Int      @default(0)
+  medium            Int      @default(0)
+  hard              Int      @default(0)
+  leetcodeUsername  String?  // Optional — set when user syncs with LeetCode
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs              DsaLog[]
+}
+
+// ─── DSA Problem Log ──────────────────────────────────────────
+model DsaLog {
+  id          String        @id @default(cuid())
+  userId      String
+  dsaId       String?       // Optional link to the DSA stats row
+  problemName String
+  difficulty  Difficulty
+  status      ProblemStatus @default(SOLVED)
+  notes       String?       // Optional notes / approach
+  loggedAt    DateTime      @default(now())
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dsa         DSA?          @relation(fields: [dsaId], references: [id], onDelete: SetNull)
+}
