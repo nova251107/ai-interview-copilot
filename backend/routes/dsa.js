@@ -1,10 +1,11 @@
 const express = require('express');
 const { getDSAStats, syncLeetCode, updateDSAStats } = require('../controllers/dsaController');
+const { verifyOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Get DSA stats for a user
-router.get('/user/:userId', getDSAStats);
+router.get('/user/:userId', verifyOwnership, getDSAStats);
 
 // Sync real stats from LeetCode — expects { leetcodeUsername } in body, userId in header
 router.post('/sync', syncLeetCode);

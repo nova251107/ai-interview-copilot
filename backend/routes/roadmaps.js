@@ -4,6 +4,7 @@ const {
   getRoadmap,
   getAllRoadmaps,
 } = require('../controllers/roadmapController');
+const { verifyOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ const router = express.Router();
 router.post('/generate', generateRoadmap);
 
 // Get all roadmaps for a user
-router.get('/user/:userId', getAllRoadmaps);
+router.get('/user/:userId', verifyOwnership, getAllRoadmaps);
 
 // Get a single roadmap
 router.get('/:id', getRoadmap);

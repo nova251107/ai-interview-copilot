@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import toast, { Toaster } from "react-hot-toast";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, Briefcase, BarChart2, Package, Palette,
   ChevronRight, Sparkles, Zap, Brain, Hash
@@ -23,6 +24,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function InterviewHome() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -38,13 +40,16 @@ export default function InterviewHome() {
     setError("");
     toast.loading(`Generating ${questionCount} questions for ${jobRole}…`, { id: "start" });
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await fetch(`${API_URL}/api/interviews/start`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "User",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({ jobRole, questionCount }),
       });

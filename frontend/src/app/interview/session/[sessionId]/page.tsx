@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, ArrowRight, ArrowLeft, CheckCircle, Brain, Mic
 } from "lucide-react";
@@ -37,6 +38,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 export default function InterviewSession() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const { sessionId } = useParams() as { sessionId: string };
 
@@ -54,12 +56,13 @@ export default function InterviewSession() {
     // Fetch existing interview from backend
     const fetchInterview = async () => {
       try {
+        const headers = await getClientHeaders(getToken, {
+          id: user.id,
+          name: user.fullName || user.firstName || "User",
+          email: user.primaryEmailAddress?.emailAddress || "",
+        });
         const res = await fetch(`${API_URL}/api/interviews/${sessionId}`, {
-          headers: {
-            "x-user-id": user.id,
-            "x-user-name": user.fullName || user.firstName || "User",
-            "x-user-email": user.primaryEmailAddress?.emailAddress || "",
-          },
+          headers,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to load interview");
@@ -90,17 +93,20 @@ export default function InterviewSession() {
 
   // Submit answer for current question to backend
   const submitCurrentAnswer = async () => {
-    if (!currentQuestion || !currentAnswer.trim()) return;
+    if (!currentQuestion || !currentAnswer.trim() || !user) return;
     setSubmitting(true);
     setError("");
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       await fetch(`${API_URL}/api/interviews/answer`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user?.id || "",
-          "x-user-name": user?.fullName || user?.firstName || "User",
-          "x-user-email": user?.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({
           interviewId: sessionId,

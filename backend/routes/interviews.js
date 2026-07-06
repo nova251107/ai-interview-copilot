@@ -1,5 +1,6 @@
 const express = require('express');
 const { startInterview, submitAnswer, getInterview, getAllInterviews } = require('../controllers/interviewController');
+const { verifyOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -13,6 +14,6 @@ router.post('/answer', submitAnswer);
 router.get('/:interviewId', getInterview);
 
 // Get all interviews for a specific user – userId in params
-router.get('/user/:userId/all', getAllInterviews);
+router.get('/user/:userId/all', verifyOwnership, getAllInterviews);
 
 module.exports = router;

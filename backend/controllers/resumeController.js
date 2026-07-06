@@ -1,5 +1,5 @@
 const prisma = require('../services/prisma');
-const { analyzeResume } = require('../services/gemini');
+const { analyzeResume } = require('../services/aiService');
 
 // ─── Upload Resume ────────────────────────────────────────────────
 const uploadResume = async (req, res) => {
@@ -42,7 +42,7 @@ const uploadResume = async (req, res) => {
     });
   } catch (error) {
     console.error('uploadResume error:', error);
-    return res.status(500).json({ success: false, message: 'Upload failed', error: error.message });
+    return res.status(500).json({ success: false, message: 'Upload failed' });
   }
 };
 
@@ -54,6 +54,15 @@ const triggerAnalysis = async (req, res) => {
     const resume = await prisma.resume.findUnique({ where: { id: resumeId } });
     if (!resume) {
       return res.status(404).json({ success: false, message: 'Resume not found' });
+    }
+
+    // Verify ownership
+    const authUserId = req.headers['x-user-id'];
+    if (resume.userId !== authUserId) {
+      const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
+      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
     }
 
     console.log(`🤖 Analyzing resume ${resumeId} with Gemini AI...`);
@@ -87,7 +96,7 @@ const triggerAnalysis = async (req, res) => {
     });
   } catch (error) {
     console.error('triggerAnalysis error:', error.message);
-    return res.status(500).json({ success: false, message: 'Analysis failed', error: error.message });
+    return res.status(500).json({ success: false, message: 'Analysis failed' });
   }
 };
 

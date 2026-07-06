@@ -1,7 +1,8 @@
 "use client";
 
-import { useUser, useClerk } from "@clerk/nextjs";
+import { useUser, useClerk, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { getClientHeaders } from "@/lib/api";
 import { useEffect, useState } from "react";
 import {
   User, Mail, Calendar, Shield, Trash2, LogOut,
@@ -20,6 +21,7 @@ interface UserStats {
 export default function ProfilePage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerk();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +34,9 @@ export default function ProfilePage() {
 
     const fetchStats = async () => {
       try {
+        const headers = await getClientHeaders(getToken, { id: user.id });
         const res = await fetch(`${API_URL}/api/users/${user.id}/stats`, {
-          headers: { "x-user-id": user.id },
+          headers,
         });
         const data = await res.json();
         if (data.success) setStats(data.stats);
@@ -108,7 +111,7 @@ export default function ProfilePage() {
                 </span>
                 <span className="flex items-center justify-center sm:justify-start gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  Joined {format(new Date(user.createdAt || Date.now()), "MMM yyyy")}
+                  Joined {user.createdAt ? format(new Date(user.createdAt), "MMM yyyy") : "—"}
                 </span>
               </div>
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">

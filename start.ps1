@@ -1,17 +1,19 @@
-# ─── AI Interview Copilot - Start All Servers ─────────────────────
-Write-Host "🚀 Starting AI Interview Copilot..." -ForegroundColor Cyan
+# AI Interview Copilot - Start Script
+$projectRoot = $PSScriptRoot
+
+Write-Host "Starting AI Interview Copilot..." -ForegroundColor Cyan
 
 # Start Backend
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd 'd:\ai project\ai-interview-copilot\backend'; node index.js" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\backend'; node index.js"
 
-# Wait a moment then start Frontend
 Start-Sleep -Seconds 2
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd 'd:\ai project\ai-interview-copilot\frontend'; npm run dev" -WindowStyle Normal
 
-Write-Host ""
-Write-Host "✅ Backend  → http://localhost:5000" -ForegroundColor Green
-Write-Host "✅ Frontend → http://localhost:3000" -ForegroundColor Green
-Write-Host ""
-Write-Host "Opening browser..." -ForegroundColor Yellow
+# Start Frontend
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$projectRoot\frontend'; npm run dev"
+
 Start-Sleep -Seconds 3
-Start-Process "http://localhost:3000"
+
+# Open browser
+Start-Process 'http://localhost:3000'
+
+Write-Host "Both servers started! Opening browser..." -ForegroundColor Green

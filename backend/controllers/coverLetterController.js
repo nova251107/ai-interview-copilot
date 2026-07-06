@@ -24,7 +24,7 @@ const generateCoverLetter = async (req, res) => {
   const companyName    = typeof rawCompanyName    === 'string' ? rawCompanyName.trim()    : '';
 
   if (!userId) return res.status(401).json({ success: false, message: 'User ID required' });
-  if (!jobDescription) return res.status(400).json({ success: false, message: 'Job description required' });
+  if (!jobDescription || jobDescription.length < 30) return res.status(400).json({ success: false, message: 'Job description must be at least 30 characters' });
   if (jobDescription.length > 5000) return res.status(400).json({ success: false, message: 'Job description must be 5000 characters or fewer' });
   if (jobTitle.length > 150)    return res.status(400).json({ success: false, message: 'Job title must be 150 characters or fewer' });
   if (companyName.length > 150) return res.status(400).json({ success: false, message: 'Company name must be 150 characters or fewer' });
@@ -95,7 +95,7 @@ Instructions:
     });
   } catch (error) {
     console.error('[generateCoverLetter] Error:', error.message);
-    return res.status(500).json({ success: false, message: 'Failed to generate cover letter', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to generate cover letter' });
   }
 };
 

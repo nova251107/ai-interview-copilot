@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
 import toast, { Toaster } from "react-hot-toast";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, Mail, Sparkles, Copy, Download,
   FileText, Building2, Briefcase, CheckCircle2, ChevronRight, Check, Printer
@@ -13,6 +14,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function CoverLetterPage() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
 
   const [jobDescription, setJobDescription] = useState("");
@@ -33,13 +35,16 @@ export default function CoverLetterPage() {
     setCoverLetter("");
 
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "Applicant",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await fetch(`${API_URL}/api/cover-letter/generate`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "Applicant",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({
           jobDescription: jobDescription.trim(),

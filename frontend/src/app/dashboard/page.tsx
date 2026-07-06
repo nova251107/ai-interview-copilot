@@ -1,5 +1,6 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getServerHeaders } from "@/lib/api";
 import {
   FileText, Mic, Map, Code2, Clock,
   Star, Zap, ChevronRight, Trophy, Activity, Mail,
@@ -53,9 +54,9 @@ interface UserStats {
   }>;
 }
 
-async function fetchSafe(url: string) {
+async function fetchSafe(url: string, headers?: Record<string, string>) {
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { headers, cache: "no-store" });
     const data = await res.json();
     return data.success ? data : null;
   } catch {
@@ -72,13 +73,19 @@ export default async function DashboardPage() {
   const email = user.emailAddresses[0]?.emailAddress;
   const userId = user.id;
 
+  const headers = await getServerHeaders(auth, {
+    id: userId,
+    email,
+    name: firstName,
+  });
+
   // Fetch all data in parallel
   const [userData, dsaData, roadmapsData, interviewsData, statsData] = await Promise.all([
-    fetchSafe(`${API}/api/users/${userId}`),
-    fetchSafe(`${API}/api/dsa/user/${userId}`),
-    fetchSafe(`${API}/api/roadmaps/user/${userId}`),
-    fetchSafe(`${API}/api/interviews/user/${userId}/all`),
-    fetchSafe(`${API}/api/users/${userId}/stats`),
+    fetchSafe(`${API}/api/users/${userId}`, headers),
+    fetchSafe(`${API}/api/dsa/user/${userId}`, headers),
+    fetchSafe(`${API}/api/roadmaps/user/${userId}`, headers),
+    fetchSafe(`${API}/api/interviews/user/${userId}/all`, headers),
+    fetchSafe(`${API}/api/users/${userId}/stats`, headers),
   ]);
 
   // ── Compute stats ────────────────────────────────────────────

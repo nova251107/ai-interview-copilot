@@ -48,7 +48,7 @@ const generateRoadmap = async (req, res) => {
     });
   } catch (error) {
     console.error('generateRoadmap error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to generate roadmap', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to generate roadmap' });
   }
 };
 
@@ -67,10 +67,19 @@ const getRoadmap = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Roadmap not found' });
     }
 
+    // Verify ownership
+    const authUserId = req.headers['x-user-id'];
+    if (roadmap.userId !== authUserId) {
+      const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
+      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    }
+
     return res.status(200).json({ success: true, roadmap });
   } catch (error) {
     console.error('getRoadmap error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch roadmap', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to fetch roadmap' });
   }
 };
 
@@ -89,7 +98,7 @@ const getAllRoadmaps = async (req, res) => {
     return res.status(200).json({ success: true, roadmaps });
   } catch (error) {
     console.error('getAllRoadmaps error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch roadmaps', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to fetch roadmaps' });
   }
 };
 

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, Code2, RefreshCw, CheckCircle2,
   Trophy, ExternalLink, Link2, ShieldCheck, AlertCircle,
@@ -29,6 +30,7 @@ const DIFFICULTY_STYLES: Record<Difficulty, { color: string; bg: string; border:
 
 export default function DSATracker() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
 
   const [stats, setStats] = useState<DSAStats>({ easy: 0, medium: 0, hard: 0 });
@@ -53,9 +55,11 @@ export default function DSATracker() {
 
   useEffect(() => {
     if (!isSignedIn || !user) return;
-    fetch(`${API_URL}/api/dsa/user/${user.id}`)
-      .then(res => res.json())
-      .then(data => {
+    const loadDSAStats = async () => {
+      try {
+        const headers = await getClientHeaders(getToken);
+        const res = await fetch(`${API_URL}/api/dsa/user/${user.id}`, { headers });
+        const data = await res.json();
         if (data.success && data.dsa) {
           setStats({
             easy: data.dsa.easy || 0,
@@ -67,9 +71,13 @@ export default function DSATracker() {
             setLcUsername(data.dsa.leetcodeUsername);
           }
         }
-      })
-      .catch(() => setError("Failed to load DSA stats"))
-      .finally(() => setLoading(false));
+      } catch {
+        setError("Failed to load DSA stats");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDSAStats();
   }, [isSignedIn, user]);
 
   const handleSync = async () => {
@@ -79,13 +87,16 @@ export default function DSATracker() {
     setSuccessMsg("");
 
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await fetch(`${API_URL}/api/dsa/sync`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "User",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({ leetcodeUsername: lcUsername.trim() }),
       });
@@ -117,13 +128,16 @@ export default function DSATracker() {
     setLogSuccess("");
 
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await fetch(`${API_URL}/api/dsa/log`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "User",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({
           problemName: problemName.trim(),

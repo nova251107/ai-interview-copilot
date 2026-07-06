@@ -68,7 +68,7 @@ const startInterview = async (req, res) => {
     });
   } catch (error) {
     console.error('startInterview error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to start interview', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to start interview' });
   }
 };
 
@@ -84,9 +84,21 @@ const submitAnswer = async (req, res) => {
   }
 
   try {
-    // Fetch question text
-    const q = await prisma.question.findUnique({ where: { id: questionId } });
+    // Fetch question text and include parent interview for ownership check
+    const q = await prisma.question.findUnique({
+      where: { id: questionId },
+      include: { interview: true },
+    });
     if (!q) return res.status(404).json({ success: false, message: 'Question not found' });
+
+    // Verify authenticated user owns this interview
+    const authUserId = req.headers['x-user-id'];
+    if (q.interview.userId !== authUserId) {
+      const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
+      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    }
 
     // AI evaluation — returns { score, feedback }
     const { score, feedback } = await evaluateAnswer(q.question, answer);
@@ -121,7 +133,7 @@ const submitAnswer = async (req, res) => {
     return res.status(200).json({ success: true, questionId, score, feedback, overallScore: avgScore });
   } catch (error) {
     console.error('submitAnswer error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to submit answer', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to submit answer' });
   }
 };
 
@@ -136,6 +148,15 @@ const getInterview = async (req, res) => {
       include: { questions: true },
     });
     if (!interview) return res.status(404).json({ success: false, message: 'Interview not found' });
+
+    // Verify ownership
+    const authUserId = req.headers['x-user-id'];
+    if (interview.userId !== authUserId) {
+      const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
+      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+        return res.status(403).json({ success: false, message: 'Forbidden' });
+      }
+    }
 
     // Flatten evaluation JSON into score/feedback fields for the frontend
     const questions = interview.questions.map((qt) => ({
@@ -152,7 +173,7 @@ const getInterview = async (req, res) => {
     });
   } catch (error) {
     console.error('getInterview error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch interview', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to fetch interview' });
   }
 };
 
@@ -170,7 +191,7 @@ const getAllInterviews = async (req, res) => {
     return res.status(200).json({ success: true, interviews, total: interviews.length });
   } catch (error) {
     console.error('getAllInterviews error:', error);
-    return res.status(500).json({ success: false, message: 'Failed to fetch interviews', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to fetch interviews' });
   }
 };
 

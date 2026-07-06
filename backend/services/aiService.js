@@ -1,6 +1,5 @@
 const Groq = require('groq-sdk');
-const axios = require('axios');
-const pdfParse = require('pdf-parse');
+const { extractTextFromPdfUrl } = require('./pdfParser');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -9,20 +8,8 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
  * Returns: atsScore, summary, skills, strengths, suggestions, missingKeywords, overallFeedback
  */
 const analyzeResume = async (pdfUrl) => {
-  // 1. Download PDF as buffer
-  const response = await axios.get(pdfUrl, {
-    responseType: 'arraybuffer',
-    timeout: 30000,
-  });
-
-  // 2. Extract text from PDF
-  const buffer = Buffer.from(response.data);
-  const pdfData = await pdfParse(buffer);
-  const resumeText = pdfData.text?.trim();
-
-  if (!resumeText || resumeText.length < 30) {
-    throw new Error('Could not extract text from PDF. Make sure the PDF has selectable text.');
-  }
+  const resumeText = await extractTextFromPdfUrl(pdfUrl);
+  if (!resumeText || resumeText.length < 30) throw new Error('Could not extract text from PDF.');
 
   console.log(`📄 Extracted ${resumeText.length} characters from PDF`);
 

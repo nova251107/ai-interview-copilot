@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Brain, Loader2, Plus, ExternalLink, Trophy,
   Calendar, Briefcase, MessageSquare, ChevronRight,
@@ -79,6 +80,7 @@ function EmptyState({ onStart }: { onStart: () => void }) {
 
 export default function InterviewHistoryPage() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
 
   const [interviews, setInterviews] = useState<InterviewSummary[]>([]);
@@ -92,12 +94,13 @@ export default function InterviewHistoryPage() {
 
     const fetchHistory = async () => {
       try {
+        const headers = await getClientHeaders(getToken, {
+          id: user.id,
+          name: user.fullName || user.firstName || "User",
+          email: user.primaryEmailAddress?.emailAddress || "",
+        });
         const res = await fetch(`${API_URL}/api/interviews/user/${user.id}/all`, {
-          headers: {
-            "x-user-id": user.id,
-            "x-user-name": user.fullName || user.firstName || "User",
-            "x-user-email": user.primaryEmailAddress?.emailAddress || "",
-          },
+          headers,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to load interviews");

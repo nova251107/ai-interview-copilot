@@ -34,7 +34,17 @@ app.use(cors({
 }));
 
 // ─── Security Headers (Helmet) ────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https://res.cloudinary.com', 'https://img.clerk.com'],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || 'http://localhost:3000'],
+    },
+  },
+}));
 
 // ─── Rate Limiters ───────────────────────────────────────────────
 // General: 100 requests per 15 minutes per IP
@@ -61,7 +71,7 @@ app.use(generalLimiter);
 // ─── Webhook (raw body — must be BEFORE express.json()) ──────────
 app.use('/api/webhooks/clerk', webhookRoutes);
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 
 
@@ -71,14 +81,21 @@ app.use('/api/interviews/start', aiLimiter);
 app.use('/api/roadmaps/generate', aiLimiter);
 app.use('/api/cover-letter', aiLimiter);
 app.use('/api/resume/analyze', aiLimiter);
+app.use('/api/interviews/answer', aiLimiter);
+
+// ─── Authentication Middleware ──────────────────────────────────
+const { verifyAuth } = require('./middleware/auth');
 
 // ─── Routes ─────────────────────────────────────────────────────
-app.use('/api/users', userRoutes);
-app.use('/api/resume', resumeRoutes);
-app.use('/api/interviews', interviewRoutes);
-app.use('/api/roadmaps', roadmapsRoutes);
-app.use('/api/dsa', dsaRoutes);
-app.use('/api/cover-letter', coverLetterRoutes);
+// Protected routes (require authentication)
+app.use('/api/users', verifyAuth, userRoutes);
+app.use('/api/resume', verifyAuth, resumeRoutes);
+app.use('/api/interviews', verifyAuth, interviewRoutes);
+app.use('/api/roadmaps', verifyAuth, roadmapsRoutes);
+app.use('/api/dsa', verifyAuth, dsaRoutes);
+app.use('/api/cover-letter', verifyAuth, coverLetterRoutes);
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', verifyAuth, adminRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -89,8 +106,13 @@ app.get('/', (req, res) => {
 });
 
 // ─── Health Check ────────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  try {
+    await require('./services/prisma').$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (error) {
+    res.status(503).json({ status: 'error', database: 'disconnected', timestamp: new Date().toISOString() });
+  }
 });
 
 // ─── 404 Handler ─────────────────────────────────────────────

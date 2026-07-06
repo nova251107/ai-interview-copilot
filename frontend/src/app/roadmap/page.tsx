@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, Briefcase, Code, Database, Palette,
   ChevronRight, Map, Compass, Search
@@ -19,6 +20,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function RoadmapHome() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [customRole, setCustomRole] = useState("");
@@ -34,13 +36,16 @@ export default function RoadmapHome() {
     setLoading(jobRole);
     setError("");
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await fetch(`${API_URL}/api/roadmaps/generate`, {
         method: "POST",
         headers: {
+          ...headers,
           "Content-Type": "application/json",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "User",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         body: JSON.stringify({ jobRole, duration }),
       });

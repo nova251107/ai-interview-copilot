@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, ArrowRight, Trophy, CheckCircle, MessageSquare, RefreshCw, History
 } from "lucide-react";
@@ -84,6 +85,7 @@ const QUESTION_TYPE_STYLES: Record<string, { label: string; bg: string; text: st
 
 export default function InterviewResult() {
   const { user, isSignedIn, isLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const { sessionId } = useParams() as { sessionId: string };
 
@@ -98,12 +100,13 @@ export default function InterviewResult() {
 
     const fetch_ = async () => {
       try {
+        const headers = await getClientHeaders(getToken, {
+          id: user.id,
+          name: user.fullName || user.firstName || "User",
+          email: user.primaryEmailAddress?.emailAddress || "",
+        });
         const res = await fetch(`${API_URL}/api/interviews/${sessionId}`, {
-          headers: {
-            "x-user-id": user.id,
-            "x-user-name": user.fullName || user.firstName || "User",
-            "x-user-email": user.primaryEmailAddress?.emailAddress || "",
-          },
+          headers,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || "Failed to load results");

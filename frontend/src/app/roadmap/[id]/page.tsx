@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import {
   Loader2, ArrowLeft, Calendar, BookOpen, Target,
   Link as LinkIcon, CheckCircle2, Award, Share2, Check,
@@ -34,22 +35,22 @@ export default function RoadmapView() {
   const { id } = useParams();
   const router = useRouter();
   const { isLoaded, isSignedIn } = useUser();
+  const { getToken } = useAuth();
   const [roadmap, setRoadmap] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [completedWeeks, setCompletedWeeks] = useState<Set<string>>(new Set());
+  const [completedWeeks, setCompletedWeeks] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem(`roadmap-progress-${id}`);
+      if (saved) return new Set(JSON.parse(saved));
+    } catch { /* ignore */ }
+    return new Set();
+  });
   const [linkCopied, setLinkCopied] = useState(false);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<number>>(new Set());
 
   const storageKey = `roadmap-progress-${id}`;
-
-  // Load progress from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) setCompletedWeeks(new Set(JSON.parse(saved)));
-    } catch { /* ignore */ }
-  }, [storageKey]);
 
   // Save progress to localStorage
   const saveProgress = useCallback((weeks: Set<string>) => {
@@ -90,14 +91,22 @@ export default function RoadmapView() {
   useEffect(() => {
     if (!id || !isSignedIn) return;
 
-    fetch(`${API_URL}/api/roadmaps/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
+    const loadRoadmap = async () => {
+      try {
+        const headers = await getClientHeaders(getToken);
+        const res = await fetch(`${API_URL}/api/roadmaps/${id}`, { headers });
+        const data = await res.json();
         if (!data.success) throw new Error(data.message);
         setRoadmap(data.roadmap);
-      })
-      .catch((err) => setError(err.message || "Failed to load roadmap"))
-      .finally(() => setLoading(false));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load roadmap";
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRoadmap();
   }, [id, isSignedIn]);
 
   if (!isLoaded || loading) {

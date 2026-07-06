@@ -1,6 +1,7 @@
 const express = require('express');
 const { upload } = require('../services/cloudinary');
 const { uploadResume, triggerAnalysis, getResume, getAllResumes } = require('../controllers/resumeController');
+const { verifyOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -11,9 +12,9 @@ router.post('/upload', upload.single('resume'), uploadResume);
 router.post('/analyze/:resumeId', triggerAnalysis);
 
 // GET  /api/resume/:userId         → Get latest resume with analysis
-router.get('/:userId', getResume);
+router.get('/:userId', verifyOwnership, getResume);
 
 // GET  /api/resume/:userId/all     → Get all resumes
-router.get('/:userId/all', getAllResumes);
+router.get('/:userId/all', verifyOwnership, getAllResumes);
 
 module.exports = router;

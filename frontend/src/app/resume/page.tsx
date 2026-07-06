@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useAuth } from "@clerk/nextjs";
+import { getClientHeaders } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import {
   Upload, FileText, CheckCircle, XCircle, Loader2,
@@ -26,6 +27,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function ResumePage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [file, setFile] = useState<File | null>(null);
@@ -59,12 +61,15 @@ export default function ResumePage() {
     formData.append("resume", file);
 
     try {
+      const headers = await getClientHeaders(getToken, {
+        id: user.id,
+        name: user.fullName || user.firstName || "User",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      });
       const res = await axios.post(`${API_URL}/api/resume/upload`, formData, {
         headers: {
+          ...headers,
           "Content-Type": "multipart/form-data",
-          "x-user-id": user.id,
-          "x-user-name": user.fullName || user.firstName || "User",
-          "x-user-email": user.primaryEmailAddress?.emailAddress || "",
         },
         onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
       });
@@ -86,7 +91,10 @@ export default function ResumePage() {
 
   const runAnalysis = async (id: string) => {
     try {
-      const res = await axios.post(`${API_URL}/api/resume/analyze/${id}`);
+      const headers = await getClientHeaders(getToken);
+      const res = await axios.post(`${API_URL}/api/resume/analyze/${id}`, {}, {
+        headers,
+      });
       setAnalysis(res.data.analysis);
       setUploadState("done");
     } catch {

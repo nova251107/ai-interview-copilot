@@ -1,5 +1,6 @@
 const express = require('express');
 const { createUser, getUserById, getAllUsers, getUserStats } = require('../controllers/userController');
+const { verifyOwnership } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -10,9 +11,9 @@ router.post('/', createUser);
 router.get('/', getAllUsers);
 
 // GET  /api/users/:id/stats → Get analytics stats for a user
-router.get('/:id/stats', getUserStats);
+router.get('/:id/stats', verifyOwnership, getUserStats);
 
 // GET  /api/users/:id    → Get user by Clerk ID (with all data)
-router.get('/:id', getUserById);
+router.get('/:id', verifyOwnership, getUserById);
 
 module.exports = router;
