@@ -1,20 +1,18 @@
 const prisma = require('../services/prisma');
 const { generateQuestions, evaluateAnswer } = require('../services/interviewAI');
 const { extractTextFromPdfUrl } = require('../services/pdfParser');
+const logger = require('../services/logger');
+const { startInterviewSchema, submitAnswerSchema } = require('../validators/interview');
 
-/**
- * Start a new mock interview session.
- * Body: { jobRole }   Header: x-user-id
- */
 const startInterview = async (req, res) => {
   const userId = req.headers['x-user-id'];
-  const { jobRole: rawJobRole, questionCount } = req.body;
+  if (!userId) {return res.status(401).json({ success: false, message: 'User ID required' });}
 
-  // ─── Input validation ────────────────────────────────────────
-  const jobRole = typeof rawJobRole === 'string' ? rawJobRole.trim().slice(0, 100) : '';
-  if (!userId)  return res.status(401).json({ success: false, message: 'User ID required' });
-  if (!jobRole) return res.status(400).json({ success: false, message: 'Job role required' });
-  if (jobRole.length > 100) return res.status(400).json({ success: false, message: 'Job role must be 100 characters or fewer' });
+  const parsed = startInterviewSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
+  }
+  const { jobRole, questionCount } = parsed.data;
 
   try {
     // ── Optional: load resume text ──────────────────────────────────────────
@@ -31,10 +29,7 @@ const startInterview = async (req, res) => {
       // No resume found — proceed with generic questions
     }
 
-    // ── Generate questions via Groq ─────────────────────────────────────────
-    // Determine number of questions (default 5)
-    const count = [5,10,15].includes(Number(questionCount)) ? Number(questionCount) : 5;
-    const questions = await generateQuestions(jobRole, resumeText, count);
+    const questions = await generateQuestions(jobRole, resumeText, questionCount);
 
     // ── Ensure user row exists ──────────────────────────────────────────────
     await prisma.user.upsert({
@@ -67,7 +62,7 @@ const startInterview = async (req, res) => {
       questions: createdQuestions.map((q) => ({ id: q.id, question: q.question })),
     });
   } catch (error) {
-    console.error('startInterview error:', error);
+    logger.error({ err: error, userId }, 'startInterview failed');
     return res.status(500).json({ success: false, message: 'Failed to start interview' });
   }
 };
@@ -77,11 +72,11 @@ const startInterview = async (req, res) => {
  * Body: { interviewId, questionId, answer }
  */
 const submitAnswer = async (req, res) => {
-  const { interviewId, questionId, answer } = req.body;
-
-  if (!interviewId || !questionId || !answer) {
-    return res.status(400).json({ success: false, message: 'interviewId, questionId and answer required' });
+  const parsed = submitAnswerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
   }
+  const { interviewId, questionId, answer } = parsed.data;
 
   try {
     // Fetch question text and include parent interview for ownership check
@@ -89,13 +84,13 @@ const submitAnswer = async (req, res) => {
       where: { id: questionId },
       include: { interview: true },
     });
-    if (!q) return res.status(404).json({ success: false, message: 'Question not found' });
+    if (!q) {return res.status(404).json({ success: false, message: 'Question not found' });}
 
-    // Verify authenticated user owns this interview
     const authUserId = req.headers['x-user-id'];
     if (q.interview.userId !== authUserId) {
+      const adminEmail = process.env.ADMIN_EMAIL;
       const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
-      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+      if (!adminEmail || authUser?.email !== adminEmail) {
         return res.status(403).json({ success: false, message: 'Forbidden' });
       }
     }
@@ -119,7 +114,7 @@ const submitAnswer = async (req, res) => {
     });
     const scores = allQuestions
       .map((qt) => qt.evaluation?.score)
-      .filter((s) => s != null);
+      .filter((s) => s !== null);
     const avgScore = scores.length
       ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
       : null;
@@ -132,7 +127,7 @@ const submitAnswer = async (req, res) => {
 
     return res.status(200).json({ success: true, questionId, score, feedback, overallScore: avgScore });
   } catch (error) {
-    console.error('submitAnswer error:', error);
+    logger.error({ err: error, interviewId }, 'submitAnswer failed');
     return res.status(500).json({ success: false, message: 'Failed to submit answer' });
   }
 };
@@ -147,13 +142,13 @@ const getInterview = async (req, res) => {
       where: { id: interviewId },
       include: { questions: true },
     });
-    if (!interview) return res.status(404).json({ success: false, message: 'Interview not found' });
+    if (!interview) {return res.status(404).json({ success: false, message: 'Interview not found' });}
 
-    // Verify ownership
     const authUserId = req.headers['x-user-id'];
     if (interview.userId !== authUserId) {
+      const adminEmail = process.env.ADMIN_EMAIL;
       const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
-      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+      if (!adminEmail || authUser?.email !== adminEmail) {
         return res.status(403).json({ success: false, message: 'Forbidden' });
       }
     }
@@ -172,7 +167,7 @@ const getInterview = async (req, res) => {
       interview: { ...interview, questions },
     });
   } catch (error) {
-    console.error('getInterview error:', error);
+    logger.error({ err: error, interviewId }, 'getInterview failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch interview' });
   }
 };
@@ -190,7 +185,7 @@ const getAllInterviews = async (req, res) => {
     });
     return res.status(200).json({ success: true, interviews, total: interviews.length });
   } catch (error) {
-    console.error('getAllInterviews error:', error);
+    logger.error({ err: error, userId }, 'getAllInterviews failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch interviews' });
   }
 };

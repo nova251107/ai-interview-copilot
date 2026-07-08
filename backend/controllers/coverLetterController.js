@@ -1,33 +1,22 @@
 const prisma = require('../services/prisma');
 const { extractTextFromPdfUrl } = require('../services/pdfParser');
 const Groq = require('groq-sdk');
+const logger = require('../services/logger');
+const { generateCoverLetterSchema } = require('../validators/coverLetter');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-/**
- * Generate a personalized cover letter using the user's resume + job description.
- * Body: { jobDescription, jobTitle?, companyName? }
- * Headers: x-user-id, x-user-name
- */
 const generateCoverLetter = async (req, res) => {
   const userId = req.headers['x-user-id'];
   const userName = req.headers['x-user-name'] || 'Applicant';
-  const {
-    jobDescription: rawJobDescription = '',
-    jobTitle: rawJobTitle = '',
-    companyName: rawCompanyName = '',
-  } = req.body;
 
-  // ─── Input sanitization & validation ────────────────────────────
-  const jobDescription = typeof rawJobDescription === 'string' ? rawJobDescription.trim() : '';
-  const jobTitle       = typeof rawJobTitle       === 'string' ? rawJobTitle.trim()       : '';
-  const companyName    = typeof rawCompanyName    === 'string' ? rawCompanyName.trim()    : '';
+  if (!userId) {return res.status(401).json({ success: false, message: 'User ID required' });}
 
-  if (!userId) return res.status(401).json({ success: false, message: 'User ID required' });
-  if (!jobDescription || jobDescription.length < 30) return res.status(400).json({ success: false, message: 'Job description must be at least 30 characters' });
-  if (jobDescription.length > 5000) return res.status(400).json({ success: false, message: 'Job description must be 5000 characters or fewer' });
-  if (jobTitle.length > 150)    return res.status(400).json({ success: false, message: 'Job title must be 150 characters or fewer' });
-  if (companyName.length > 150) return res.status(400).json({ success: false, message: 'Company name must be 150 characters or fewer' });
+  const parsed = generateCoverLetterSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
+  }
+  const { jobDescription, jobTitle, companyName } = parsed.data;
 
   try {
     // 1. Try to load the user's latest resume text
@@ -41,7 +30,7 @@ const generateCoverLetter = async (req, res) => {
         resumeText = await extractTextFromPdfUrl(resume.resumeUrl);
       }
     } catch (err) {
-      console.warn('No resume found, using JD-only mode:', err.message);
+      logger.warn({ err }, 'No resume found, using JD-only mode');
     }
 
     const hasResume = resumeText && resumeText.length > 30;
@@ -94,7 +83,7 @@ Instructions:
       usedResume: hasResume,
     });
   } catch (error) {
-    console.error('[generateCoverLetter] Error:', error.message);
+    logger.error({ err: error, userId }, 'generateCoverLetter failed');
     return res.status(500).json({ success: false, message: 'Failed to generate cover letter' });
   }
 };

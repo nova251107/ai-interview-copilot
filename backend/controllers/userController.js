@@ -1,12 +1,13 @@
 const prisma = require('../services/prisma');
+const logger = require('../services/logger');
+const { createUserSchema } = require('../validators/user');
 
-// ─── Create User (called from Clerk webhook) ──────────────────────
 const createUser = async (req, res) => {
-  const { id, name, email, image } = req.body;
-
-  if (!id || !email) {
-    return res.status(400).json({ success: false, message: 'id and email are required' });
+  const parsed = createUserSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
   }
+  const { id, name, email, image } = parsed.data;
 
   try {
     // Upsert: create if not exists, update if exists
@@ -18,7 +19,7 @@ const createUser = async (req, res) => {
 
     return res.status(201).json({ success: true, user });
   } catch (error) {
-    console.error('createUser error:', error);
+    logger.error({ err: error }, 'createUser failed');
     return res.status(500).json({ success: false, message: 'Failed to create user' });
   }
 };
@@ -44,7 +45,7 @@ const getUserById = async (req, res) => {
 
     return res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error('getUserById error:', error);
+    logger.error({ err: error, userId: id }, 'getUserById failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch user' });
   }
 };
@@ -57,7 +58,7 @@ const getAllUsers = async (req, res) => {
     });
     return res.status(200).json({ success: true, users, total: users.length });
   } catch (error) {
-    console.error('getAllUsers error:', error);
+    logger.error({ err: error }, 'getAllUsers failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch users' });
   }
 };
@@ -116,7 +117,7 @@ const getUserStats = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('getUserStats error:', error);
+    logger.error({ err: error, userId: id }, 'getUserStats failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch stats' });
   }
 };

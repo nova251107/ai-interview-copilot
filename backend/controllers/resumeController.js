@@ -1,5 +1,6 @@
 const prisma = require('../services/prisma');
 const { analyzeResume } = require('../services/aiService');
+const logger = require('../services/logger');
 
 // ─── Upload Resume ────────────────────────────────────────────────
 const uploadResume = async (req, res) => {
@@ -41,7 +42,7 @@ const uploadResume = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('uploadResume error:', error);
+    logger.error({ err: error }, 'uploadResume failed');
     return res.status(500).json({ success: false, message: 'Upload failed' });
   }
 };
@@ -56,21 +57,21 @@ const triggerAnalysis = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Resume not found' });
     }
 
-    // Verify ownership
     const authUserId = req.headers['x-user-id'];
     if (resume.userId !== authUserId) {
+      const adminEmail = process.env.ADMIN_EMAIL;
       const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
-      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+      if (!adminEmail || authUser?.email !== adminEmail) {
         return res.status(403).json({ success: false, message: 'Forbidden' });
       }
     }
 
-    console.log(`🤖 Analyzing resume ${resumeId} with Gemini AI...`);
+    logger.info({ resumeId }, 'Analyzing resume with AI');
 
     // Send PDF directly to Gemini (no pdf-parse needed)
     const analysis = await analyzeResume(resume.resumeUrl);
 
-    console.log(`✅ Analysis complete! ATS Score: ${analysis.atsScore}`);
+    logger.info({ atsScore: analysis.atsScore }, 'Resume analysis complete');
 
     // Save results to DB
     await prisma.resume.update({
@@ -95,7 +96,7 @@ const triggerAnalysis = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('triggerAnalysis error:', error.message);
+    logger.error({ err: error, resumeId }, 'triggerAnalysis failed');
     return res.status(500).json({ success: false, message: 'Analysis failed' });
   }
 };
@@ -107,14 +108,13 @@ const getResume = async (req, res) => {
     const resume = await prisma.resume.findFirst({
       where: { userId }, orderBy: { createdAt: 'desc' },
     });
-    if (!resume) return res.status(404).json({ success: false, message: 'No resume found' });
+    if (!resume) { return res.status(404).json({ success: false, message: 'No resume found' }); }
     return res.status(200).json({ success: true, resume });
-  } catch (error) {
+  } catch (_error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch resume' });
   }
 };
 
-// ─── Get All Resumes ──────────────────────────────────────────────
 const getAllResumes = async (req, res) => {
   const { userId } = req.params;
   try {
@@ -122,7 +122,7 @@ const getAllResumes = async (req, res) => {
       where: { userId }, orderBy: { createdAt: 'desc' },
     });
     return res.status(200).json({ success: true, resumes, total: resumes.length });
-  } catch (error) {
+  } catch (_error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch resumes' });
   }
 };

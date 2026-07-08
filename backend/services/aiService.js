@@ -1,5 +1,6 @@
 const Groq = require('groq-sdk');
 const { extractTextFromPdfUrl } = require('./pdfParser');
+const logger = require('./logger');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -9,9 +10,9 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
  */
 const analyzeResume = async (pdfUrl) => {
   const resumeText = await extractTextFromPdfUrl(pdfUrl);
-  if (!resumeText || resumeText.length < 30) throw new Error('Could not extract text from PDF.');
+  if (!resumeText || resumeText.length < 30) {throw new Error('Could not extract text from PDF.');}
 
-  console.log(`📄 Extracted ${resumeText.length} characters from PDF`);
+  logger.info({ charCount: resumeText.length }, 'Extracted text from PDF for resume analysis');
 
   // 3. Analyze with Groq (Llama 3.1 8B)
   const completion = await groq.chat.completions.create({

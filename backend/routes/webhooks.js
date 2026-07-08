@@ -1,6 +1,7 @@
 const express = require('express');
 const { Webhook } = require('svix');
 const prisma = require('../services/prisma');
+const logger = require('../services/logger');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    console.error('CLERK_WEBHOOK_SECRET is not set!');
+    logger.error('CLERK_WEBHOOK_SECRET is not set!');
     return res.status(500).json({ error: 'Webhook secret not configured' });
   }
 
@@ -30,12 +31,12 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
       'svix-signature': svix_signature,
     });
   } catch (err) {
-    console.error('Webhook verification failed:', err.message);
+    logger.error({ err }, 'Webhook verification failed');
     return res.status(400).json({ error: 'Invalid webhook signature' });
   }
 
   const { type, data } = event;
-  console.log(`📥 Clerk Webhook: ${type}`);
+  logger.info({ type }, 'Clerk webhook received');
 
   // ─── user.created → Save to PostgreSQL ──────────────────────────
   if (type === 'user.created') {
@@ -49,9 +50,9 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
         update: { name, image: image_url },
         create: { id, name, email, image: image_url },
       });
-      console.log(`✅ User saved to DB: ${name} (${email})`);
+      logger.info({ name, email }, 'User saved to DB from webhook');
     } catch (err) {
-      console.error('Failed to save user to DB:', err.message);
+      logger.error({ err }, 'Failed to save user from webhook');
     }
   }
 
@@ -60,9 +61,9 @@ router.post('/', express.raw({ type: 'application/json' }), async (req, res) => 
     const { id } = data;
     try {
       await prisma.user.delete({ where: { id } });
-      console.log(`🗑️  User deleted from DB: ${id}`);
+      logger.info({ userId: id }, 'User deleted from DB via webhook');
     } catch (err) {
-      console.error('Failed to delete user from DB:', err.message);
+      logger.error({ err }, 'Failed to delete user from DB');
     }
   }
 

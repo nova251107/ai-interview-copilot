@@ -1,5 +1,6 @@
 const { createClerkClient } = require('@clerk/express');
 const prisma = require('../services/prisma');
+const logger = require('../services/logger');
 
 // Initialize Clerk client
 const clerk = createClerkClient({
@@ -25,14 +26,14 @@ const verifyAuth = async (req, res, next) => {
       req.headers['x-user-id'] = userId;
       return next();
     } catch (error) {
-      console.error('Token verification failed:', error.message);
+      logger.warn({ err: error }, 'Token verification failed');
       return res.status(401).json({ success: false, message: 'Invalid or expired session token' });
     }
   }
 
   const userId = req.headers['x-user-id'];
   if (userId) {
-    console.warn(`[AUTH WARNING] Request using unverified x-user-id header: ${userId}. Migrate to Bearer token auth.`);
+    logger.warn({ userId }, 'Request using unverified x-user-id header. Migrate to Bearer token auth.');
     req.auth = {
       userId,
       verified: false,
@@ -67,14 +68,16 @@ const verifyOwnership = async (req, res, next) => {
     return next();
   }
 
-  // DB lookup to check if the authenticated user is the admin
-  try {
-    const user = await prisma.user.findUnique({ where: { id: authUserId } });
-    if (user && user.email === 'vatsalyagadoya@gmail.com') {
-      return next();
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (adminEmail) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: authUserId } });
+      if (user && user.email === adminEmail) {
+        return next();
+      }
+    } catch (error) {
+      logger.error({ err: error }, 'Database authorization check failed');
     }
-  } catch (error) {
-    console.error('Database authorization check failed:', error);
   }
 
   return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to access this resource.' });

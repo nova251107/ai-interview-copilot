@@ -1,5 +1,7 @@
 const prisma = require('../services/prisma');
 const { generateRoadmapContent } = require('../services/roadmapAI');
+const logger = require('../services/logger');
+const { generateRoadmapSchema } = require('../validators/roadmap');
 
 /**
  * Generate a new roadmap for a user.
@@ -8,13 +10,13 @@ const { generateRoadmapContent } = require('../services/roadmapAI');
  */
 const generateRoadmap = async (req, res) => {
   const userId = req.headers['x-user-id'];
-  const { jobRole: rawJobRole, duration } = req.body;
+  if (!userId) {return res.status(401).json({ success: false, message: 'User ID required' });}
 
-  // ─── Input validation ────────────────────────────────────────
-  const jobRole = typeof rawJobRole === 'string' ? rawJobRole.trim() : '';
-  if (!userId) return res.status(401).json({ success: false, message: 'User ID required' });
-  if (!jobRole) return res.status(400).json({ success: false, message: 'Job role required' });
-  if (jobRole.length > 100) return res.status(400).json({ success: false, message: 'Job role must be 100 characters or fewer' });
+  const parsed = generateRoadmapSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
+  }
+  const { jobRole, duration } = parsed.data;
 
   try {
     // 1. Ensure user row exists (upsert)
@@ -28,9 +30,7 @@ const generateRoadmap = async (req, res) => {
       },
     });
 
-    // 2. Generate roadmap JSON via AI
-    const durationVal = parseInt(duration) || 3;
-    const roadmapJson = await generateRoadmapContent(jobRole, durationVal);
+    const roadmapJson = await generateRoadmapContent(jobRole, duration);
 
     // 3. Save roadmap to database
     const roadmap = await prisma.roadmap.create({
@@ -47,7 +47,7 @@ const generateRoadmap = async (req, res) => {
       roadmap,
     });
   } catch (error) {
-    console.error('generateRoadmap error:', error);
+    logger.error({ err: error, userId }, 'generateRoadmap failed');
     return res.status(500).json({ success: false, message: 'Failed to generate roadmap' });
   }
 };
@@ -57,8 +57,9 @@ const generateRoadmap = async (req, res) => {
  * Params: id
  */
 const getRoadmap = async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const { id } = req.params;
     const roadmap = await prisma.roadmap.findUnique({
       where: { id },
     });
@@ -67,18 +68,18 @@ const getRoadmap = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Roadmap not found' });
     }
 
-    // Verify ownership
     const authUserId = req.headers['x-user-id'];
     if (roadmap.userId !== authUserId) {
+      const adminEmail = process.env.ADMIN_EMAIL;
       const authUser = await prisma.user.findUnique({ where: { id: authUserId } });
-      if (authUser?.email !== 'vatsalyagadoya@gmail.com') {
+      if (!adminEmail || authUser?.email !== adminEmail) {
         return res.status(403).json({ success: false, message: 'Forbidden' });
       }
     }
 
     return res.status(200).json({ success: true, roadmap });
   } catch (error) {
-    console.error('getRoadmap error:', error);
+    logger.error({ err: error, id }, 'getRoadmap failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch roadmap' });
   }
 };
@@ -88,8 +89,9 @@ const getRoadmap = async (req, res) => {
  * Params: userId
  */
 const getAllRoadmaps = async (req, res) => {
+  const { userId } = req.params;
+
   try {
-    const { userId } = req.params;
     const roadmaps = await prisma.roadmap.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -97,7 +99,7 @@ const getAllRoadmaps = async (req, res) => {
 
     return res.status(200).json({ success: true, roadmaps });
   } catch (error) {
-    console.error('getAllRoadmaps error:', error);
+    logger.error({ err: error, userId }, 'getAllRoadmaps failed');
     return res.status(500).json({ success: false, message: 'Failed to fetch roadmaps' });
   }
 };

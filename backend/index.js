@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+const logger = require('./services/logger');
 
 const webhookRoutes = require('./routes/webhooks');
 const interviewRoutes = require('./routes/interviews');
@@ -110,7 +111,7 @@ app.get('/health', async (req, res) => {
   try {
     await require('./services/prisma').$queryRaw`SELECT 1`;
     res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
-  } catch (error) {
+  } catch (_error) {
     res.status(503).json({ status: 'error', database: 'disconnected', timestamp: new Date().toISOString() });
   }
 });
@@ -121,11 +122,11 @@ app.use((req, res) => {
 });
 
 // ─── Global Error Handler ─────────────────────────────────────
-app.use((err, req, res, next) => {
-  console.error(err.stack);
+app.use((err, req, res, _next) => {
+  logger.error({ err }, 'Unhandled error');
   res.status(500).json({ success: false, message: 'Internal Server Error' });
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running on http://localhost:${PORT}`);
+  logger.info(`Server running on http://localhost:${PORT}`);
 });

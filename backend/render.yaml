@@ -19,6 +19,8 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+      - key: ADMIN_EMAIL
+        sync: false
       - key: PORT
         value: 5000
     healthCheckPath: /health

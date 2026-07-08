@@ -1,18 +1,20 @@
 const prisma = require('../services/prisma');
 const { fetchLeetCodeStats } = require('../services/leetcode');
+const logger = require('../services/logger');
+const { syncLeetCodeSchema, updateDSAStatsSchema } = require('../validators/dsa');
 
 /**
  * Get DSA stats for a specific user.
  * Params: userId
  */
 const getDSAStats = async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ success: false, message: 'User ID is required' });
+  }
+
   try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({ success: false, message: 'User ID is required' });
-    }
-
     const dsa = await prisma.dSA.findUnique({ where: { userId } });
 
     if (!dsa) {
@@ -24,8 +26,8 @@ const getDSAStats = async (req, res) => {
 
     return res.status(200).json({ success: true, dsa });
   } catch (error) {
-    console.error('[getDSAStats] Error:', error.message);
-    return res.status(500).json({ success: false, message: 'Failed to fetch DSA stats', error: error.message });
+    logger.error({ err: error, userId }, 'getDSAStats failed');
+    return res.status(500).json({ success: false, message: 'Failed to fetch DSA stats' });
   }
 };
 
@@ -36,10 +38,13 @@ const getDSAStats = async (req, res) => {
  */
 const syncLeetCode = async (req, res) => {
   const userId = req.headers['x-user-id'];
-  const { leetcodeUsername } = req.body;
+  if (!userId) {return res.status(401).json({ success: false, message: 'User ID required' });}
 
-  if (!userId) return res.status(401).json({ success: false, message: 'User ID required' });
-  if (!leetcodeUsername) return res.status(400).json({ success: false, message: 'LeetCode username required' });
+  const parsed = syncLeetCodeSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
+  }
+  const { leetcodeUsername } = parsed.data;
 
   try {
     // 1. Ensure user exists
@@ -54,7 +59,7 @@ const syncLeetCode = async (req, res) => {
         },
       });
     } catch (userErr) {
-      console.warn('User upsert warning (continuing):', userErr.message);
+      logger.warn({ err: userErr }, 'User upsert warning (continuing)');
     }
 
     // 2. Fetch REAL stats from LeetCode GraphQL API
@@ -85,7 +90,7 @@ const syncLeetCode = async (req, res) => {
       lcStats,
     });
   } catch (error) {
-    console.error('[syncLeetCode] Error:', error.message);
+    logger.error({ err: error, userId }, 'syncLeetCode failed');
     const msg = error.message.includes('not found')
       ? error.message
       : 'Failed to sync with LeetCode. Check the username and try again.';
@@ -100,9 +105,13 @@ const syncLeetCode = async (req, res) => {
  */
 const updateDSAStats = async (req, res) => {
   const userId = req.headers['x-user-id'];
-  const { easy, medium, hard } = req.body;
+  if (!userId) {return res.status(401).json({ success: false, message: 'User ID required in headers' });}
 
-  if (!userId) return res.status(401).json({ success: false, message: 'User ID required in headers' });
+  const parsed = updateDSAStatsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: parsed.error.errors[0].message });
+  }
+  const { easy, medium, hard } = parsed.data;
 
   try {
     try {
@@ -116,13 +125,13 @@ const updateDSAStats = async (req, res) => {
         },
       });
     } catch (userErr) {
-      console.warn('User upsert warning (continuing):', userErr.message);
+      logger.warn({ err: userErr }, 'User upsert warning (continuing)');
     }
 
     const updateData = {};
-    if (easy !== undefined) updateData.easy = parseInt(easy);
-    if (medium !== undefined) updateData.medium = parseInt(medium);
-    if (hard !== undefined) updateData.hard = parseInt(hard);
+    if (easy !== undefined) {updateData.easy = easy;}
+    if (medium !== undefined) {updateData.medium = medium;}
+    if (hard !== undefined) {updateData.hard = hard;}
 
     const dsa = await prisma.dSA.upsert({
       where: { userId },
@@ -137,8 +146,8 @@ const updateDSAStats = async (req, res) => {
 
     return res.status(200).json({ success: true, dsa });
   } catch (error) {
-    console.error(`[updateDSAStats] Error:`, error.message, error.code);
-    return res.status(500).json({ success: false, message: 'Failed to update DSA stats', error: error.message });
+    logger.error({ err: error, userId }, 'updateDSAStats failed');
+    return res.status(500).json({ success: false, message: 'Failed to update DSA stats' });
   }
 };
 

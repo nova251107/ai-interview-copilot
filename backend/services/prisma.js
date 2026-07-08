@@ -1,7 +1,7 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 
-// Prevent multiple Prisma instances in development (hot reload)
 const globalForPrisma = global;
 
 if (!globalForPrisma.prisma) {

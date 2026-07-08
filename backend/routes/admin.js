@@ -1,5 +1,6 @@
 const express = require('express');
 const prisma = require('../services/prisma');
+const logger = require('../services/logger');
 
 const router = express.Router();
 
@@ -11,8 +12,8 @@ const adminAuth = (req, res, next) => {
     return res.status(401).json({ success: false, message: 'Unauthorized: No email provided' });
   }
 
-  // Check if it's the admin email
-  if (userEmail !== 'vatsalyagadoya@gmail.com') {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail || userEmail !== adminEmail) {
     return res.status(403).json({ success: false, message: 'Forbidden: You are not authorized to view this page.' });
   }
 
@@ -37,7 +38,7 @@ router.get('/users', adminAuth, async (req, res) => {
 
     res.json({ success: true, users });
   } catch (error) {
-    console.error('Failed to fetch admin users:', error);
+    logger.error({ err: error }, 'Failed to fetch admin users');
     res.status(500).json({ success: false, message: 'Internal Server Error' });
   }
 });
